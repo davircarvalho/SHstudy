@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from scipy.special import sph_harm, hankel2
 from scipy.spatial import SphericalVoronoi
 from scipy.sparse import csr_matrix
+import copy
+
 
 '''
 TODO - check distance variation interpolation
@@ -67,7 +69,7 @@ def interpSH(HRIR, input_pos, target_pos, fs, epsilon=1e-8):
 
     # Calculate coeffs for known positions
     N_pos = input_pos.shape[0]
-    Lmax = int(2 * np.ceil(np.sqrt(N_pos) - 1))  # max order
+    Lmax = int(np.ceil(np.sqrt(N_pos) - 1))  # max order
     if Lmax > 50:
         Lmax = 50
     print(f'SH order {Lmax}')
@@ -123,15 +125,15 @@ def interpSH(HRIR, input_pos, target_pos, fs, epsilon=1e-8):
 
 # %% Test interpolation
 # load HRTF
-path = r'D:\Documentos\1 - Work\Individualized_HRTF_Synthesis\Datasets\HUTUBS\pp1_HRIRs_simulated.sofa'
+path = r'C:\Users\rdavi\Desktop\SOFA\pp22_HRIRs_simulated.sofa'
 Obj = sofa.SOFAFile.load(path)
 fs = Obj.Data_SamplingRate
 
-resolution = 2  # degrees
+resolution = 5  # degrees
 des_azi = np.arange(0, 360, resolution)
 des_ele = np.arange(-90, 90, resolution)
 r = Obj.SourcePosition[0][2]
-# r = 1
+r = 4
 target_pos = np.zeros((len(des_azi) * len(des_ele), 3))
 k = 0
 for el in des_ele:
@@ -196,4 +198,36 @@ plot_mag_vertical(HRIRs, target_pos, fs, title='Vertical (interpolated)')
 
 plot_mag_horizontal(Obj.Data_IR, Obj.SourcePosition, fs, title='Horizontal (reference)')
 plot_mag_horizontal(HRIRs, target_pos, fs, title='Horizontal (interpolated)')
+
+
 # %%
+def plot_mag(HRIR1, HRIR2, fs, pos1, pos2, azi=90, elev=0):
+    # find horizontal plane
+    ear = 1
+    idx_pos1 = np.sqrt((pos1[:, 0] - azi)**2 + (pos1[:, 1] - elev)**2).argmin()
+    idx_pos2 = np.sqrt((pos2[:, 0] - azi)**2 + (pos2[:, 1] - elev)**2).argmin()
+    hM1 = np.squeeze(HRIR1[:, ear, :])  # left ear
+    hM2 = np.squeeze(HRIR2[:, ear, :])  # left ear
+
+    M1 = np.squeeze(20 * np.log10(np.abs(np.fft.rfft(hM1[idx_pos1, :], axis=-1))))
+    M2 = np.squeeze(20 * np.log10(np.abs(np.fft.rfft(hM2[idx_pos2, :], axis=-1))))
+
+    freq = np.fft.rfftfreq(HRIR1.shape[-1], 1 / fs)
+    fig, ax = plt.subplots()
+    ax.semilogx(freq, M1, label='original')
+    ax.semilogx(freq, M2, label='interpolated')
+    plt.ylim([-60, 40])
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Mag (dB)')
+    plt.title(f'azi:{azi}, elev:{elev}')
+    plt.legend()
+    plt.show()
+
+
+plot_mag(Obj.Data_IR, HRIRs, fs, Obj.SourcePosition, target_pos)
+
+# %% Export
+Obj_out = copy.deepcopy(Obj)
+Obj_out.Data_IR = HRIRs
+Obj_out.SourcePosition = target_pos
+Obj_out.export('fabian_extrap')

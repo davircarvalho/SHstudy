@@ -30,11 +30,10 @@ for el in des_ele:
 def get_SH(Lmax, pos):
     # Lmax: max SH order
     # pos: array [N_pos x 2] : 2= azimuth, elevation
-    N_pos = pos.shape[0]
     theta = np.deg2rad(pos[:, 0])  # must be in [0, 2*pi]
     phi = np.deg2rad(pos[:, 1] + 90)  # must be in [0, pi].
     N_SH = int((Lmax + 1)**2)  # number of SH coefficients
-    Y = np.zeros((N_pos, N_SH), dtype=complex)
+    Y = np.zeros((pos.shape[0], N_SH), dtype=complex)
     count = 0
     for ni in np.arange(0, Lmax + 1):
         for mi in np.arange(-ni, ni + 1):
